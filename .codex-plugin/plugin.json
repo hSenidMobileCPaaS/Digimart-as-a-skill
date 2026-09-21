@@ -1,0 +1,41 @@
+{
+  "name": "digimart",
+  "version": "1.0.0",
+  "description": "Build correct Digimart integrations — Subscription and One-Time Charging SDKs (SHA-512 signed URLs), notifications and REST subscriber APIs, for charging Grameenphone subscribers in Bangladesh.",
+  "author": {
+    "name": "hSenid Mobile Solutions",
+    "url": "https://www.hsenidmobile.com"
+  },
+  "homepage": "https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill",
+  "repository": "https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill",
+  "license": "UNLICENSED",
+  "keywords": [
+    "digimart",
+    "grameenphone",
+    "carrier-billing",
+    "caas",
+    "bangladesh"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Digimart",
+    "shortDescription": "Digimart carrier-billing integration",
+    "longDescription": "The complete Digimart contract: SHA-512 signed charging URLs for subscriptions and one-time charges, the redirect and notification handlers, the REST subscriber APIs, all 31 SDK status codes, credential hygiene and a go-live checklist.",
+    "category": "Integrations",
+    "capabilities": [
+      "Instructions",
+      "Skills",
+      "Commands"
+    ],
+    "websiteURL": "https://digimart.store",
+    "defaultPrompt": [
+      "Add Digimart one-time charging to this app.",
+      "Why does this Digimart URL return E1002?",
+      "Review my Digimart integration before go-live."
+    ],
+    "brandColor": "#6F47C4",
+    "logo": "./assets/digimart-logo.png",
+    "developerName": "hSenid Mobile Solutions",
+    "composerIcon": "./assets/digimart-logo.png"
+  }
+}

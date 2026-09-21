@@ -1,0 +1,2033 @@
+{
+  "catalogVersion": "1.0.0",
+  "transcribed": "2026-09-21",
+  "sources": [
+    {
+      "name": "Digimart developer documentation",
+      "url": "https://digimart.store/docs",
+      "covers": "The authoritative source: what Digimart is, provisioning, the three signed-URL charging flows, signatures, the REST APIs, SDK error codes and the go-live checklist."
+    },
+    {
+      "name": "Digimart REST API specification (OpenAPI 3.0, rendered with Redoc)",
+      "url": "https://digimart.store/API_Documentation/docs/digimart_API.html",
+      "covers": "The four REST operations under the 'subscription' tag group, their schemas and the permitted subscriber-list status codes. Transcribed from an archived copy; the live URL now redirects into https://digimart.store/docs/rest-api, which carries the same contract."
+    },
+    {
+      "name": "Digimart pricing",
+      "url": "https://digimart.store/pricing",
+      "covers": "The one-time charging band (1 to 600 BDT) and the revenue-share model."
+    },
+    {
+      "name": "Digimart developer terms",
+      "url": "https://digimart.store/legal/terms",
+      "covers": "Developer obligations: 24-hour customer response, content rules, marketing rules, third-party authorisation."
+    }
+  ],
+  "platform": {
+    "name": "Digimart",
+    "operator": "hSenid Mobile Solutions",
+    "network": "Grameenphone",
+    "market": "Bangladesh",
+    "currency": "BDT",
+    "summary": "Digimart lets an application take money from a Grameenphone customer's mobile balance, the same balance they use for calls and data. It is run by hSenid Mobile Solutions to open Grameenphone's telco assets to developers in Bangladesh.",
+    "portal": "https://user.digimart.store/",
+    "docs": "https://digimart.store/docs",
+    "support": {
+      "email": "support@digimart.store",
+      "phone": "+8801764987009",
+      "whatsapp": "https://api.whatsapp.com/send?phone=8801764987009"
+    },
+    "products": [
+      {
+        "name": "Subscription",
+        "category": "subscription",
+        "reference": "references/03-subscription-sdk.md",
+        "summary": "Recurring billing. The subscriber consents once with an OTP and is charged on a repeating cycle (daily or monthly) until they stop. Digimart runs opt-in, consent, renewal and cancellation against the Grameenphone mobile account."
+      },
+      {
+        "name": "One-time charging (CaaS)",
+        "category": "one-time",
+        "reference": "references/04-one-time-sdk.md",
+        "summary": "Also called CaaS, Charging as a Service, or on-demand charging. A single charge of a specific amount between 1 and 600 BDT: unlock a feature, sell a ticket, top up credits."
+      }
+    ],
+    "chargingBand": {
+      "min": 1,
+      "max": 600,
+      "currency": "BDT",
+      "appliesTo": "one-time",
+      "source": "https://digimart.store/pricing",
+      "note": "Outside the band the platform returns E1330 (too low) or E1329 (too high). In practice the ceiling is the credit subscribers keep on their phones, so E3009 (insufficient balance) is the most common production failure."
+    },
+    "commercial": [
+      "No signup fee, no monthly platform fee and no charge for a sandbox app.",
+      "Revenue share: the customer is charged for the service they take and the sum is divided between the developer and Grameenphone at an agreed ratio.",
+      "All prices are inclusive of applicable taxes and government charges, which are deducted before the revenue share is settled.",
+      "hSenid Mobile Solutions settles the developer revenue share; the ratio and settlement cycle are set in the developer agreement."
+    ]
+  },
+  "hosts": {
+    "sdk": "https://user.digimart.store",
+    "rest": "https://api.digimart.store",
+    "note": "Two different hosts with two different credentials. The charging SDKs are signed URLs opened in a browser on user.digimart.store; the REST APIs are JSON POSTs to api.digimart.store. Never share one base-URL constant between them."
+  },
+  "credentials": [
+    {
+      "name": "API Key",
+      "envVar": "DIGIMART_API_KEY",
+      "surface": "sdk",
+      "secret": false,
+      "where": "Shown on the application in the Digimart portal once an administrator approves it.",
+      "note": "Identifies the application. It travels in the URL and is the first field of the signing string. Not a secret, but keep it server-side with the secret it pairs with."
+    },
+    {
+      "name": "API Secret",
+      "envVar": "DIGIMART_API_SECRET",
+      "surface": "sdk",
+      "secret": true,
+      "where": "Shown on the application in the Digimart portal once an administrator approves it.",
+      "note": "Never placed in a URL, never sent anywhere. It only contributes to the SHA-512 signature. Anyone holding it can build a valid charging URL for your application."
+    },
+    {
+      "name": "applicationId",
+      "envVar": "DIGIMART_APP_ID",
+      "surface": "rest",
+      "secret": false,
+      "where": "The unique identifier generated while provisioning the application, e.g. APP_000040.",
+      "note": "Sent in the JSON body of every REST call, and present on every notification Digimart posts to you."
+    },
+    {
+      "name": "App Password",
+      "envVar": "DIGIMART_PASSWORD",
+      "surface": "rest",
+      "secret": true,
+      "where": "A unique key sent to the service provider's email when the app is created.",
+      "note": "Used strictly to authenticate REST API calls, in the JSON body as `password`. An inbox is not a secret store: move it into your secret manager and delete the mail."
+    }
+  ],
+  "conventions": {
+    "sdk": {
+      "shape": "Build a signed URL on your server and send the subscriber's browser (or web view) to it with an HTTP redirect or a link. There is no request body, no JSON and nothing to POST. Digimart owns every screen until it returns the subscriber to your redirectUrl.",
+      "signature": {
+        "algorithm": "SHA-512",
+        "encoding": "lowercase hexadecimal, 128 characters",
+        "separator": "|",
+        "rules": [
+          "Fields are joined with a pipe, no spaces, no trailing separator, in exactly the order the flow documents.",
+          "The API Secret sits in the middle of the string, not at the end: apiKey|requestTime|apiSecret. For one-time charging the amount is appended as a fourth field.",
+          "Hash the raw values, then URL-encode when assembling the query string. Never hash URL-encoded values.",
+          "The requestTime and amount inside the hash must be byte-identical to the ones in the query string. Build each into a variable once and reuse it.",
+          "Hash the UTF-8 bytes of the string and emit lowercase hex. Some languages default to uppercase; normalise it.",
+          "Build the signature on the server. A signature built in browser or mobile code means the secret is public."
+        ]
+      },
+      "requestTime": {
+        "format": "ISO 8601 UTC with milliseconds and a trailing Z, e.g. 2024-07-08T10:33:54.929Z",
+        "note": "Digimart says to generate it in the Asia/Dhaka timezone (UTC+06:00). Every published code sample (Node new Date().toISOString(), PHP gmdate, Python datetime in Asia/Dhaka converted to UTC, Java Instant.now(), C# DateTime.UtcNow) produces the true current UTC instant, so do that: take the current instant, express it in UTC with a Z, and keep the server clock NTP-synced. Do not write Dhaka wall-clock time with a Z suffix — that is six hours wrong."
+      },
+      "requestId": {
+        "format": "exactly 15 digits",
+        "note": "Unique for every URL you build, your choice of value. It correlates the redirect and the notification with your order. A value already used is rejected with E1005, so never retry with the same one. The documentation's quick samples derive it from the current time in milliseconds padded to 15 digits; that collides when two requests land in the same millisecond, so prefer a random 15-digit value with a non-zero first digit, or a database sequence, and persist it before redirecting."
+      }
+    },
+    "rest": {
+      "method": "POST",
+      "contentType": "application/json;charset=utf-8",
+      "auth": {
+        "type": "body-credentials",
+        "fields": [
+          "applicationId",
+          "password"
+        ],
+        "note": "Every REST request carries applicationId and the App Password in the JSON body. There are no headers, tokens or signatures on the REST surface — the SHA-512 signature belongs to the SDK only."
+      },
+      "addressing": {
+        "format": "tel:<msisdn>",
+        "rules": [
+          "Subscribers are identified as tel:<msisdn>. When the application uses masked numbers, send the masked value — the same subscriberId the SDK redirect and the notifications gave you — prefixed with tel:.",
+          "The subscriberId you receive on the redirect and on notifications carries no tel: prefix. Add it in one function at the boundary, never inline.",
+          "The published examples are inconsistent about a space after the colon (\"tel: 8801740812854\" on the lookup APIs, \"tel:8801740812854\" on unsubscription). Send it without a space, exactly as the unsubscription specification documents, and confirm against a real response in sandbox."
+        ]
+      },
+      "responseEnvelope": {
+        "always": [
+          "version",
+          "statusCode",
+          "statusDetail"
+        ],
+        "common": [
+          "requestId"
+        ],
+        "criticalNote": "Branch on statusCode in the body, never on the HTTP status alone. The REST status codes are a separate set from the SDK error codes, and apart from S1000 Digimart publishes no description for them."
+      }
+    },
+    "callbackAck": {
+      "http": 200,
+      "body": "not published",
+      "note": "Digimart publishes no response body for its notifications. Answer HTTP 200 quickly, then process asynchronously. Do not claim or depend on Digimart parsing anything you return."
+    }
+  },
+  "sdkFlows": [
+    {
+      "id": "subscription",
+      "name": "Subscription Charging SDK (without header enrichment)",
+      "aliases": [
+        "subscription sdk",
+        "subscribe",
+        "authorize",
+        "subscription-no-he",
+        "recurring",
+        "subscription charging"
+      ],
+      "category": "subscription",
+      "direction": "redirect",
+      "host": "sdk",
+      "path": "/sdk/subscription/authorize",
+      "envVar": "DIGIMART_SUBSCRIPTION_AUTHORIZE_URL",
+      "summary": "The default subscription flow. Build a signed URL and open it; Digimart asks the subscriber for their mobile number, sends an OTP, takes consent and starts the recurring charge.",
+      "reference": "references/03-subscription-sdk.md",
+      "parameters": [
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": true,
+          "signed": true,
+          "description": "Displayed on the application you created in the Digimart portal. Copy it after an administrator approves the app.",
+          "example": "32c8a59cef446de3b78090d142ddac0e"
+        },
+        {
+          "name": "requestId",
+          "type": "string (15 digits)",
+          "required": true,
+          "signed": false,
+          "description": "A unique 15-digit identifier of your choosing. It correlates this request with the redirect response and the async notification. A requestId that has already been used cannot be reused.",
+          "example": "123456789012345",
+          "perRequest": "Generate a fresh one for every URL and persist it against the order before redirecting. Reuse is rejected with E1005."
+        },
+        {
+          "name": "requestTime",
+          "type": "string (ISO 8601 UTC)",
+          "required": true,
+          "signed": true,
+          "description": "The current time in UTC format. Digimart says to generate it in the Asia/Dhaka timezone (UTC+06:00); if it does not validate, the request is rejected.",
+          "example": "2024-07-08T10:33:54.929Z",
+          "perRequest": "Take the current instant once, into a variable, and use that same string in the hash and in the query string."
+        },
+        {
+          "name": "signature",
+          "type": "string (SHA-512 hex)",
+          "required": true,
+          "signed": false,
+          "description": "SHA-512 hash of the pipe-joined string apiKey|requestTime|apiSecret, as lowercase hex. The API Secret is never sent in the URL, only its contribution to this hash."
+        },
+        {
+          "name": "redirectUrl",
+          "type": "string (URL)",
+          "required": true,
+          "signed": false,
+          "description": "The page subscribers are returned to after a successful or failed transaction, reached when they press 'Back to Application'.",
+          "example": "https://www.mywebsite.com"
+        },
+        {
+          "name": "msisdn",
+          "type": "string",
+          "required": false,
+          "signed": false,
+          "description": "The subscriber's mobile number. Optional. If you supply it, the number-entry screen is skipped and the flow goes straight to the OTP screen.",
+          "example": "01748277168"
+        }
+      ],
+      "signingFields": [
+        "apiKey",
+        "requestTime",
+        "apiSecret"
+      ],
+      "workedExample": {
+        "values": {
+          "apiKey": "myApiKey123",
+          "requestTime": "2024-08-08T12:00:00Z",
+          "apiSecret": "mySecretKey456"
+        },
+        "signingString": "myApiKey123|2024-08-08T12:00:00Z|mySecretKey456",
+        "digest": "f03c8c41e0fec896bc2510e51f46353b8d753512c4892a2c56004bcd2a3aa42ce625c3c92a76fa2b5571b161cff1b1e8a2b5b497e3c89f016561731b69547a8d",
+        "note": "The signing string is Digimart's worked example. The digest is its SHA-512, computed here so an implementation in any language can be checked against a known answer before it touches the platform."
+      },
+      "sampleUrl": "https://user.digimart.store/sdk/subscription/authorize?apiKey=32c8a59cef446de3b78090d142ddac0e&requestId=123456789012345&requestTime=2024-07-08T10:33:54.929Z&signature=0185e77e9cd469e0da58c6270eb838dc96af6e5c84f057405f3a62ea6979ac12491c47c69e0a42cab521b77b3b6409188304206c6308efa89c1971d0862ceda2&redirectUrl=https://www.mywebsite.com",
+      "sampleUrlWithMsisdn": "https://user.digimart.store/sdk/subscription/authorize?apiKey=32c8a59cef446de3b78090d142ddac0e&requestId=123456789012345&requestTime=2024-07-08T10:33:54.929Z&signature=0185e77e9cd469e0da58c6270eb838dc96af6e5c84f057405f3a62ea6979ac12491c47c69e0a42cab521b77b3b6409188304206c6308efa89c1971d0862ceda2&redirectUrl=https://www.mywebsite.com/&msisdn=01748277168",
+      "sampleRedirect": "https://user.digimart.store?subscriptionStatus=S1000&subscriberId=OGI2OGY1Njk2NjhlNjAyMTM1OWIwMzlhYTIxOGIyMDBlYTZlNmEyYzY5ZTM5MmYzMjRkMDg1MmMzYmIzYzE5YTpncmE&requestId=123456789012347",
+      "returns": {
+        "redirect": "redirect-return",
+        "notification": "subscription-notification",
+        "notificationField": "Subscription Notification URL"
+      },
+      "screens": [
+        "Number entry, with the recurring price shown before subscribing (skipped when msisdn is supplied)",
+        "OTP entry: an OTP is sent to the Grameenphone number and the subscriber acknowledges the recurring charge",
+        "Subscription confirmed",
+        "Error page if anything fails during the journey"
+      ],
+      "rules": [
+        "This is not a REST API. There is nothing to POST: build the URL on your server and redirect the browser to it.",
+        "Sign exactly three fields in this order: apiKey|requestTime|apiSecret.",
+        "The redirect back to redirectUrl is a convenience that travels through the subscriber's browser. The notification on the Subscription Notification URL is the authoritative record.",
+        "Store the requestId against your user before redirecting, and the subscriberId Digimart hands back against that requestId. subscriberId is a masked number and is how every later REST call and notification identifies the subscriber.",
+        "Cancellation is not an SDK flow. It is the REST call POST /subs/unregistration, and a working cancel path is a condition of going live."
+      ],
+      "source": "https://digimart.store/docs/subscription-sdk",
+      "sampleRedirectNote": "Published verbatim. The sample lands on the Digimart host; yours lands on the redirectUrl you sent, with these query parameters appended.",
+      "statusCodes": [
+        "S1000",
+        "E1001",
+        "E1002",
+        "E1003",
+        "E1004",
+        "E1005",
+        "E1006",
+        "E1007",
+        "E1008",
+        "E1009",
+        "E1010",
+        "E1011",
+        "E1012",
+        "E1013",
+        "E1014",
+        "E1329",
+        "E1330",
+        "E2001",
+        "E2002",
+        "E2003",
+        "E2004",
+        "E3001",
+        "E3002",
+        "E3003",
+        "E3004",
+        "E3005",
+        "E3006",
+        "E3007",
+        "E3008",
+        "E3009",
+        "E4001"
+      ]
+    },
+    {
+      "id": "subscription-he",
+      "name": "Subscription Charging SDK (with header enrichment)",
+      "aliases": [
+        "header enrichment",
+        "he",
+        "subscription with he",
+        "subscription-he",
+        "auto msisdn"
+      ],
+      "category": "subscription",
+      "direction": "redirect",
+      "host": "sdk",
+      "path": "/sdk/subscription/authorize",
+      "envVar": "DIGIMART_SUBSCRIPTION_AUTHORIZE_URL",
+      "summary": "The same endpoint and signature as the subscription flow. Because an administrator has enabled 'Allow Capturing Mobile Number via Header Enrichment' on the application, Grameenphone supplies the number from the mobile network and the number-entry screen becomes a price-confirmation screen.",
+      "reference": "references/03-subscription-sdk.md",
+      "parameters": [
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": true,
+          "signed": true,
+          "description": "Displayed on the application you created in the Digimart portal. Copy it after an administrator approves the app.",
+          "example": "32c8a59cef446de3b78090d142ddac0e"
+        },
+        {
+          "name": "requestId",
+          "type": "string (15 digits)",
+          "required": true,
+          "signed": false,
+          "description": "A unique 15-digit identifier of your choosing. It correlates this request with the redirect response and the async notification. A requestId that has already been used cannot be reused.",
+          "example": "123456789012345",
+          "perRequest": "Generate a fresh one for every URL and persist it against the order before redirecting. Reuse is rejected with E1005."
+        },
+        {
+          "name": "requestTime",
+          "type": "string (ISO 8601 UTC)",
+          "required": true,
+          "signed": true,
+          "description": "The current time in UTC format. Digimart says to generate it in the Asia/Dhaka timezone (UTC+06:00); if it does not validate, the request is rejected.",
+          "example": "2024-07-08T10:33:54.929Z",
+          "perRequest": "Take the current instant once, into a variable, and use that same string in the hash and in the query string."
+        },
+        {
+          "name": "signature",
+          "type": "string (SHA-512 hex)",
+          "required": true,
+          "signed": false,
+          "description": "SHA-512 hash of the pipe-joined string apiKey|requestTime|apiSecret, as lowercase hex. Identical to the flow without header enrichment."
+        },
+        {
+          "name": "redirectUrl",
+          "type": "string (URL)",
+          "required": true,
+          "signed": false,
+          "description": "The page subscribers are returned to after a successful or failed transaction, reached when they press 'Back to Application'.",
+          "example": "https://www.mywebsite.com"
+        },
+        {
+          "name": "msisdn",
+          "type": "string",
+          "required": false,
+          "signed": false,
+          "description": "Optional, and largely redundant here. Whether or not you send it, the MSISDN is captured automatically through header enrichment.",
+          "example": "01748277168"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "signed": false,
+          "description": "The amount to be charged. Listed as a required parameter on this flow only; it is NOT part of the signing string here, and the documentation does not explain its role for a subscription.",
+          "example": "10",
+          "note": "Send it as listed, keep it out of the hash, and confirm its effect with support@digimart.store before relying on it."
+        }
+      ],
+      "signingFields": [
+        "apiKey",
+        "requestTime",
+        "apiSecret"
+      ],
+      "workedExample": {
+        "values": {
+          "apiKey": "myApiKey123",
+          "requestTime": "2024-08-08T12:00:00Z",
+          "apiSecret": "mySecretKey456"
+        },
+        "signingString": "myApiKey123|2024-08-08T12:00:00Z|mySecretKey456",
+        "digest": "f03c8c41e0fec896bc2510e51f46353b8d753512c4892a2c56004bcd2a3aa42ce625c3c92a76fa2b5571b161cff1b1e8a2b5b497e3c89f016561731b69547a8d",
+        "note": "Identical to the flow without header enrichment: the amount is not signed on a subscription."
+      },
+      "sampleUrl": "https://user.digimart.store/sdk/subscription/authorize?apiKey=32c8a59cef446de3b78090d142ddac0e&requestId=123456789012345&requestTime=2024-07-08T10:33:54.929Z&signature=0185e77e9cd469e0da58c6270eb838dc96af6e5c84f057405f3a62ea6979ac12491c47c69e0a42cab521b77b3b6409188304206c6308efa89c1971d0862ceda2&redirectUrl=https://www.mywebsite.com",
+      "sampleUrlWithMsisdn": "https://user.digimart.store/sdk/subscription/authorize?apiKey=32c8a59cef446de3b78090d142ddac0e&requestId=123456789012345&requestTime=2024-07-08T10:33:54.929Z&signature=0185e77e9cd469e0da58c6270eb838dc96af6e5c84f057405f3a62ea6979ac12491c47c69e0a42cab521b77b3b6409188304206c6308efa89c1971d0862ceda2&redirectUrl=https://www.mywebsite.com/&msisdn=01748277168",
+      "sampleRedirect": "http://user.digimart.store?subscriptionStatus=S1000&subscriberId=ZjUyMTM1MjlhYmU0ZmJmY2FkYjRkYWI3NzE2ZDg0MjE0NjNjYTM5MGFhZTczOWZlZDUxMTcxN2U3YTVlZTRiNTpncmFtZWVucGhvbmU=&requestId=123456789012346",
+      "returns": {
+        "redirect": "redirect-return",
+        "notification": "charging-notification",
+        "notificationField": "Async charging resp URL"
+      },
+      "screens": [
+        "Price confirmation with the number already known; the subscriber presses Get OTP",
+        "OTP entry",
+        "Payment success, with an SMS to the subscriber's masked number",
+        "Error page if anything fails during the journey"
+      ],
+      "rules": [
+        "Header enrichment is switched on by a Digimart administrator on the application ('Allow Capturing Mobile Number via Header Enrichment'). You cannot turn it on from code.",
+        "It only works when the subscriber is browsing on Grameenphone mobile data; the network is what supplies the number.",
+        "Signing is identical to the flow without header enrichment: apiKey|requestTime|apiSecret. The amount listed on this flow is not signed.",
+        "Digimart's documentation names the Async charging resp URL as this flow's notification field. Implement both notification handlers if the application might run either subscription variant.",
+        "The notification is the authoritative record. The redirect only travels through the browser."
+      ],
+      "source": "https://digimart.store/docs/subscription-sdk#with-header-enrichment",
+      "sampleRedirectNote": "Published verbatim. The sample lands on the Digimart host; yours lands on the redirectUrl you sent, with these query parameters appended.",
+      "statusCodes": [
+        "S1000",
+        "E1001",
+        "E1002",
+        "E1003",
+        "E1004",
+        "E1005",
+        "E1006",
+        "E1007",
+        "E1008",
+        "E1009",
+        "E1010",
+        "E1011",
+        "E1012",
+        "E1013",
+        "E1014",
+        "E1329",
+        "E1330",
+        "E2001",
+        "E2002",
+        "E2003",
+        "E2004",
+        "E3001",
+        "E3002",
+        "E3003",
+        "E3004",
+        "E3005",
+        "E3006",
+        "E3007",
+        "E3008",
+        "E3009",
+        "E4001"
+      ]
+    },
+    {
+      "id": "one-time",
+      "name": "One-Time Charging SDK (CaaS)",
+      "aliases": [
+        "caas",
+        "one time",
+        "one-time charging",
+        "on-demand",
+        "on demand charging",
+        "caas-authorize",
+        "single charge",
+        "purchase"
+      ],
+      "category": "one-time",
+      "direction": "redirect",
+      "host": "sdk",
+      "path": "/sdk/subscription/caas-authorize",
+      "envVar": "DIGIMART_CAAS_AUTHORIZE_URL",
+      "summary": "A single payment of a specific amount from the subscriber's Grameenphone mobile account. Same shape as a subscription, with a different path and an amount that is sent as a parameter AND folded into the signature.",
+      "reference": "references/04-one-time-sdk.md",
+      "movesMoney": true,
+      "parameters": [
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": true,
+          "signed": true,
+          "description": "Displayed on the application you created in the Digimart portal. Copy it after an administrator approves the app.",
+          "example": "32c8a59cef446de3b78090d142ddac0e"
+        },
+        {
+          "name": "requestId",
+          "type": "string (15 digits)",
+          "required": true,
+          "signed": false,
+          "description": "A unique 15-digit identifier of your choosing. It correlates this request with the redirect response and the async notification. Reuse is rejected with E1005.",
+          "example": "123456789012345",
+          "perRequest": "Generate a fresh one for every URL and persist it against the order before redirecting. It is how the notification is matched to the purchase."
+        },
+        {
+          "name": "requestTime",
+          "type": "string (ISO 8601 UTC)",
+          "required": true,
+          "signed": true,
+          "description": "The current time in UTC format. Digimart says to generate it in the Asia/Dhaka timezone (UTC+06:00); if it does not validate, the request is rejected.",
+          "example": "2024-07-08T10:33:54.929Z",
+          "perRequest": "Take the current instant once, into a variable, and use that same string in the hash and in the query string."
+        },
+        {
+          "name": "signature",
+          "type": "string (SHA-512 hex)",
+          "required": true,
+          "signed": false,
+          "description": "SHA-512 hash of the pipe-joined string apiKey|requestTime|apiSecret|amount, as lowercase hex. The amount must be encrypted under the signature."
+        },
+        {
+          "name": "redirectUrl",
+          "type": "string (URL)",
+          "required": true,
+          "signed": false,
+          "description": "The page subscribers are returned to after a successful or failed transaction, reached when they press 'Back to Application'.",
+          "example": "https://www.mywebsite.com"
+        },
+        {
+          "name": "msisdn",
+          "type": "string",
+          "required": false,
+          "signed": false,
+          "description": "The subscriber's mobile number. Optional. If supplied, the number-entry screen is skipped and the flow goes straight to the OTP screen.",
+          "example": "01748277168"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "signed": true,
+          "description": "The amount to be charged, in BDT. Sent as a query parameter AND appended to the signing string. The published band is 1 to 600 BDT.",
+          "example": "10",
+          "perRequest": "Decide it on the server from your own price list, never from client input, and use the identical string in the hash and in the query string."
+        }
+      ],
+      "signingFields": [
+        "apiKey",
+        "requestTime",
+        "apiSecret",
+        "amount"
+      ],
+      "workedExample": {
+        "values": {
+          "apiKey": "myApiKey123",
+          "requestTime": "2024-08-08T12:00:00Z",
+          "apiSecret": "mySecretKey456",
+          "amount": "50"
+        },
+        "signingString": "myApiKey123|2024-08-08T12:00:00Z|mySecretKey456|50",
+        "digest": "3badf638ceca499000fd07b899e5fc0cec348d9762886b8430104291126683892845a208caef8e99b53432571e46c5f04162a1a25646443f7935239ea0901b38",
+        "note": "The signing string is Digimart's worked example for a one-time charge of BDT 50. The digest is its SHA-512, computed here as a known answer for testing an implementation."
+      },
+      "sampleUrl": "https://user.digimart.store/sdk/subscription/caas-authorize?apiKey=32c8a59cef446de3b78090d142ddac0e&requestId=123456789012345&requestTime=2024-07-08T10:33:54.929Z&signature=0185e77e9cd469e0da58c6270eb838dc96af6e5c84f057405f3a62ea6979ac12491c47c69e0a42cab521b77b3b6409188304206c6308efa89c1971d0862ceda2&redirectUrl=https://www.mywebsite.com&amount=10",
+      "sampleRedirect": "http://user.digimart.store?subscriptionStatus=S1000&subscriberId=ZjUyMTM1MjlhYmU0ZmJmY2FkYjRkYWI3NzE2ZDg0MjE0NjNjYTM5MGFhZTczOWZlZDUxMTcxN2U3YTVlZTRiNTpncmFtZWVucGhvbmU=&requestId=123456789012346",
+      "returns": {
+        "redirect": "redirect-return",
+        "notification": "charging-notification",
+        "notificationField": "Async charging resp URL"
+      },
+      "screens": [
+        "Number entry, with the exact amount shown before paying (skipped when msisdn is supplied)",
+        "OTP entry: Grameenphone generates and sends the OTP, with the charge restated",
+        "Payment success, with an SMS to the subscriber's masked number",
+        "Error page if anything fails during the journey"
+      ],
+      "rules": [
+        "Sign FOUR fields: apiKey|requestTime|apiSecret|amount. Signing only the first three is the single most common reason a working subscription integration fails when copied to one-time charging — every request comes back E1002.",
+        "Send amount as a query parameter as well as signing it, and use the byte-identical string in both places.",
+        "The amount must fall between 1 and 600 BDT, or the platform returns E1330 (too low) or E1329 (too high).",
+        "Take the amount from your own server-side price list. An amount taken from the client lets a user set their own price.",
+        "Deliver the goods only when the charging notification arrives with statusCode S1000 for this requestId. Compare paidAmount with what you asked for rather than assuming they match."
+      ],
+      "source": "https://digimart.store/docs/one-time-sdk",
+      "sampleRedirectNote": "Published verbatim. The sample lands on the Digimart host; yours lands on the redirectUrl you sent, with these query parameters appended.",
+      "statusCodes": [
+        "S1000",
+        "E1001",
+        "E1002",
+        "E1003",
+        "E1004",
+        "E1005",
+        "E1006",
+        "E1007",
+        "E1008",
+        "E1009",
+        "E1010",
+        "E1011",
+        "E1012",
+        "E1013",
+        "E1014",
+        "E1329",
+        "E1330",
+        "E2001",
+        "E2002",
+        "E2003",
+        "E2004",
+        "E3001",
+        "E3002",
+        "E3003",
+        "E3004",
+        "E3005",
+        "E3006",
+        "E3007",
+        "E3008",
+        "E3009",
+        "E4001"
+      ]
+    }
+  ],
+  "services": [
+    {
+      "id": "get-subscribers",
+      "name": "Subscriber List",
+      "aliases": [
+        "subscriber list",
+        "getsubscribers",
+        "list subscribers",
+        "reconcile",
+        "missed notifications",
+        "subscription-info-server"
+      ],
+      "category": "subscription",
+      "direction": "outbound",
+      "method": "POST",
+      "host": "rest",
+      "path": "/subscription-info-server/getSubscribers",
+      "envVar": "DIGIMART_GET_SUBSCRIBERS_URL",
+      "summary": "Returns the subscribers registered against your application, one page at a time. It exists so you can retrieve subscription notifications you missed and reconcile your records against the platform's.",
+      "reference": "references/06-rest-apis.md",
+      "parameters": [
+        {
+          "name": "applicationId",
+          "type": "string",
+          "required": true,
+          "description": "Unique identification of the application within the platform."
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": "Password given when provisioning the application (the App Password)."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "description": "The version of the API being invoked."
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": false,
+          "enum": [
+            "REGISTERED",
+            "TEMPORARY_BLOCKED",
+            "REG_PENDING"
+          ],
+          "description": "Filter by subscription entry status."
+        },
+        {
+          "name": "subscriberRequestId",
+          "type": "string",
+          "required": false,
+          "description": "The initial request ID allocated when the Charging SDK transaction was triggered for a particular user."
+        },
+        {
+          "name": "requestPage",
+          "type": "integer",
+          "required": true,
+          "description": "The page number to fetch from the list of pages containing subscription notifications. A JSON number, not a string."
+        }
+      ],
+      "responseFields": [
+        {
+          "name": "version",
+          "type": "string",
+          "description": "API version."
+        },
+        {
+          "name": "statusCode",
+          "type": "string",
+          "description": "Success or error code for the entire request. The specification permits S1000, S1001, E1100, E1102, E1103, E1104, E1105, E1106 and E1107."
+        },
+        {
+          "name": "statusDetail",
+          "type": "string",
+          "description": "Description corresponding to the status code. For every code except S1000 this is the only explanation Digimart gives — log it."
+        },
+        {
+          "name": "nextPageNumber",
+          "type": "integer",
+          "description": "The next available page number. -1 when no further page exists."
+        },
+        {
+          "name": "moreDataAvailable",
+          "type": "boolean",
+          "description": "Whether more data is available beyond this page."
+        },
+        {
+          "name": "requestId",
+          "type": "string",
+          "description": "Unique identifier of this response. Quote it when raising a support ticket."
+        },
+        {
+          "name": "subscribers",
+          "type": "object[]",
+          "description": "One entry per subscriber. Typed as a single object in the specification and shown as an array in the example — normalise to an array.",
+          "fields": [
+            {
+              "name": "subscriberId",
+              "type": "string",
+              "description": "The subscriber, as tel:<masked number>. The specification notes the application only accepts masked numbers here."
+            },
+            {
+              "name": "subscriberRequestId",
+              "type": "string",
+              "description": "The initial request ID allocated when the Charging SDK transaction was triggered for this user — your requestId."
+            },
+            {
+              "name": "subscriptionStatus",
+              "type": "string",
+              "description": "Status of the subscription, e.g. INITIAL, REG_PENDING, REGISTERED or TEMPORARY_BLOCKED."
+            },
+            {
+              "name": "lastChargedDate",
+              "type": "string",
+              "description": "The last successful charge date, documented as YYYY-MM-DD hh:mm:ss (the example uses dots: 2020-01-23 22.03.22)."
+            },
+            {
+              "name": "lastChargedAmount",
+              "type": "string",
+              "description": "The last successful charge amount with the currency code, e.g. 30.00 BDT."
+            }
+          ]
+        }
+      ],
+      "sampleRequest": {
+        "applicationId": "APP_102672",
+        "password": "…",
+        "version": "2.0",
+        "status": "REGISTERED",
+        "subscriberRequestId": "124002601656523239",
+        "requestPage": 2
+      },
+      "sampleResponse": {
+        "version": "2.0",
+        "statusCode": "S1000",
+        "statusDetail": "Request was successfully processed",
+        "nextPageNumber": 3,
+        "moreDataAvailable": true,
+        "requestId": "223902031657423338",
+        "subscribers": [
+          {
+            "subscriberId": "tel: NTM3MDgzMWI2ZDAwMzlmZTQ0N2Y1ZGFhMzQwOTM2MDA0YmEzZWRiYTFjYzIzNzhhZDZhYjZjNmI1MzliZWIxYTpiYW5nbGFsaW5r",
+            "subscriberRequestId": "124002601656523239",
+            "subscriptionStatus": "REGISTERED",
+            "lastChargedDate": "2020-01-23 22.03.22",
+            "lastChargedAmount": "30.00 BDT"
+          }
+        ]
+      },
+      "successCodes": [
+        "S1000",
+        "S1001"
+      ],
+      "responseMessageField": "statusDetail",
+      "responseHandling": [
+        "Page while moreDataAvailable is true, requesting nextPageNumber each time. nextPageNumber is -1 when there is no further page.",
+        "Normalise subscribers to an array before iterating: the specification types it as one object, the example shows an array.",
+        "Match each entry to your records by subscriberRequestId (your original requestId) and subscriberId; update your local subscription state from subscriptionStatus.",
+        "S1001 is permitted by the specification with no published meaning. It is S-prefixed, the success family, so do not raise an error on it — process whatever the page carries and log statusDetail."
+      ],
+      "statusCodes": [
+        "S1000",
+        "S1001",
+        "E1100",
+        "E1102",
+        "E1103",
+        "E1104",
+        "E1105",
+        "E1106",
+        "E1107"
+      ],
+      "rules": [
+        "A catch-up and reconciliation mechanism for missed notifications, not a substitute for handling the Subscription Notification URL.",
+        "requestPage is the only integer in any Digimart request body. Everything else is a string.",
+        "Apart from S1000, Digimart publishes no description for these status codes. Log statusCode, statusDetail and requestId, and escalate to support@digimart.store rather than guessing."
+      ],
+      "source": "https://digimart.store/docs/rest-api#endpoints"
+    },
+    {
+      "id": "subscriber-charging-info",
+      "name": "Subscriber Charging Info",
+      "aliases": [
+        "charging info",
+        "getsubscribercharginginfo",
+        "subscription status",
+        "is subscribed",
+        "last charged",
+        "status check"
+      ],
+      "category": "subscription",
+      "direction": "outbound",
+      "method": "POST",
+      "host": "rest",
+      "path": "/subscription/getSubscriberChargingInfo",
+      "envVar": "DIGIMART_CHARGING_INFO_URL",
+      "summary": "Current subscription state and last charge for a list of subscribers. Answers 'is this person still subscribed, and when did they last pay'.",
+      "reference": "references/06-rest-apis.md",
+      "parameters": [
+        {
+          "name": "applicationId",
+          "type": "string",
+          "required": true,
+          "description": "Unique identification of the application within the platform."
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": "Password given when provisioning the application (the App Password)."
+        },
+        {
+          "name": "subscriberId",
+          "type": "string[]",
+          "required": false,
+          "description": "The subscribers to look up, each as tel:<msisdn>. If the application uses masked numbers, send the masked values. An array even for one subscriber."
+        }
+      ],
+      "responseFields": [
+        {
+          "name": "version",
+          "type": "string",
+          "description": "API version."
+        },
+        {
+          "name": "statusCode",
+          "type": "string",
+          "description": "The status code for the entire request."
+        },
+        {
+          "name": "statusDetail",
+          "type": "string",
+          "description": "Description of the status for the entire request."
+        },
+        {
+          "name": "requestId",
+          "type": "string",
+          "description": "Unique identifier of this response. Quote it when raising a support ticket."
+        },
+        {
+          "name": "destinationResponses",
+          "type": "object[]",
+          "description": "One entry per subscriber looked up, each with its own status.",
+          "fields": [
+            {
+              "name": "subscriberId",
+              "type": "string",
+              "description": "The subscriber this entry is about."
+            },
+            {
+              "name": "subscriptionStatus",
+              "type": "string",
+              "description": "Status of the subscription, e.g. INITIAL, REG_PENDING, REGISTERED or TEMPORARY_BLOCKED."
+            },
+            {
+              "name": "subscriberRequestId",
+              "type": "string",
+              "description": "The initial request ID allocated when the Charging SDK transaction was triggered for this user."
+            },
+            {
+              "name": "lastChargedDate",
+              "type": "string",
+              "description": "The last successful charge date."
+            },
+            {
+              "name": "lastChargedAmount",
+              "type": "string",
+              "description": "The last successful charge amount with the currency code."
+            },
+            {
+              "name": "numberType",
+              "type": "string",
+              "description": "prepaid or postpaid."
+            },
+            {
+              "name": "statusCode",
+              "type": "string",
+              "description": "Outcome for this subscriber. Can fail while the top-level statusCode is S1000."
+            },
+            {
+              "name": "statusDetail",
+              "type": "string",
+              "description": "Description of this subscriber's outcome."
+            }
+          ]
+        }
+      ],
+      "sampleRequest": {
+        "applicationId": "APP_102672",
+        "password": "…",
+        "subscriberId": [
+          "tel:NTM3MDgzMWI2ZDAwMzlmZTQ0N2Y1ZGFhMzQwOTM2MDA0YmEzZWRiYTFjYzIzNzhhZDZhYjZjNmI1MzliZWIxYTpiYW5nbGFsaW5r"
+        ]
+      },
+      "sampleResponse": {
+        "version": "2.0",
+        "statusCode": "S1000",
+        "statusDetail": "Success.",
+        "requestId": "101901031657410007",
+        "destinationResponses": [
+          {
+            "subscriberId": "tel: 8801740812854",
+            "subscriptionStatus": "REGISTERED",
+            "subscriberRequestId": "124002601656523239",
+            "lastChargedDate": "2020-01-23 22.03.22",
+            "lastChargedAmount": "30.00 BDT",
+            "numberType": "postpaid",
+            "statusCode": "S1000",
+            "statusDetail": "Request was successfully processed"
+          }
+        ]
+      },
+      "successCodes": [
+        "S1000"
+      ],
+      "responseMessageField": "statusDetail",
+      "responseHandling": [
+        "A top-level S1000 means the request was processed, not that every subscriber was found. Read the statusCode on every entry in destinationResponses.",
+        "Use it for an on-demand check (before starting a new opt-in, which would otherwise fail with E3001 'User Already Registered') — not on every page load. Mirror state from the notifications instead."
+      ],
+      "statusCodes": [
+        "S1000"
+      ],
+      "rules": [
+        "subscriberId is an ARRAY of tel:-prefixed strings, even for one subscriber.",
+        "Send the masked value Digimart gave you, prefixed with tel:. The subscriberId on the redirect and on notifications has no prefix.",
+        "The specification enumerates no status codes for this endpoint beyond the S1000 example. Treat any other code as a failure and log statusDetail."
+      ],
+      "source": "https://digimart.store/docs/rest-api#endpoints"
+    },
+    {
+      "id": "unregistration",
+      "name": "User Unsubscription",
+      "aliases": [
+        "unsubscribe",
+        "unsub",
+        "cancel subscription",
+        "unregister",
+        "subs/unregistration",
+        "opt out",
+        "stop"
+      ],
+      "category": "subscription",
+      "direction": "outbound",
+      "method": "POST",
+      "host": "rest",
+      "path": "/subs/unregistration",
+      "envVar": "DIGIMART_UNREGISTRATION_URL",
+      "summary": "Ends a subscriber's subscription to your application. This is the API behind any 'cancel my subscription' control you build — and a working cancellation path is a condition of the developer agreement.",
+      "reference": "references/06-rest-apis.md",
+      "parameters": [
+        {
+          "name": "applicationId",
+          "type": "string",
+          "required": true,
+          "description": "Identifies the application. A unique identifier generated while provisioning. Only a single value per request."
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": "Authenticates the application-originated message against the credentials of the service provider (the App Password)."
+        },
+        {
+          "name": "subscriberId",
+          "type": "string",
+          "required": true,
+          "description": "The subscriber to unsubscribe, as tel:<msisdn>. May be a masked number depending on the application type. Only a single value per request."
+        },
+        {
+          "name": "action",
+          "type": "enum",
+          "required": true,
+          "enum": [
+            "0"
+          ],
+          "description": "The operation to perform. 0 means user unsubscription. Sent as the string \"0\", as the published example does."
+        }
+      ],
+      "responseFields": [
+        {
+          "name": "version",
+          "type": "string",
+          "description": "API version."
+        },
+        {
+          "name": "statusCode",
+          "type": "string",
+          "description": "The status code for the entire request."
+        },
+        {
+          "name": "statusDetail",
+          "type": "string",
+          "description": "Description of the status for the entire request."
+        },
+        {
+          "name": "requestId",
+          "type": "string",
+          "description": "Unique identifier of this response. Quote it when raising a support ticket."
+        },
+        {
+          "name": "subscriptionStatus",
+          "type": "string",
+          "description": "The resulting subscription status, e.g. UNREGISTERED."
+        }
+      ],
+      "sampleRequest": {
+        "applicationId": "APP_999999",
+        "password": "…",
+        "subscriberId": "tel:NTM3MDgzMWI2ZDAwMzlmZTQ0N2Y1ZGFhMzQwOTM2MDA0YmEzZWRiYTFjYzIzNzhhZDZhYjZjNmI1MzliZWIxYTpiYW5nbGFsaW5r",
+        "action": "0"
+      },
+      "sampleResponse": {
+        "version": "2.0",
+        "statusCode": "S1000",
+        "statusDetail": "not registered",
+        "requestId": "101901031657410007",
+        "subscriptionStatus": "UNREGISTERED"
+      },
+      "successCodes": [
+        "S1000"
+      ],
+      "responseMessageField": "statusDetail",
+      "responseHandling": [
+        "Read subscriptionStatus, not only statusCode. The published example pairs S1000 with the statusDetail 'not registered' and subscriptionStatus UNREGISTERED — the subscriber ends up unsubscribed either way.",
+        "Mark the subscription ended in your own store immediately, and stop any access tied to it. Do not wait for a notification: none is documented for unsubscription."
+      ],
+      "statusCodes": [
+        "S1000"
+      ],
+      "rules": [
+        "One subscriber per request. subscriberId is a single tel:-prefixed string here, not an array.",
+        "action is \"0\" (user unsubscription) — the only published value.",
+        "The specification enumerates no status codes for this endpoint beyond the S1000 example. Treat any other code as a failure, log statusDetail, and keep the user's cancel request so it can be retried.",
+        "Make cancellation obvious in your product. It is on Digimart's go-live checklist."
+      ],
+      "source": "https://digimart.store/docs/rest-api#endpoints"
+    }
+  ],
+  "callbacks": [
+    {
+      "id": "subscription-notification",
+      "name": "Subscription Notification",
+      "aliases": [
+        "subscription notify",
+        "subscription/notify",
+        "subscriber notifications",
+        "subscription notification url",
+        "notify"
+      ],
+      "category": "subscription",
+      "direction": "inbound",
+      "kind": "notification",
+      "method": "POST",
+      "specPath": "/subscription/notify",
+      "suggestedPath": "/api/digimart/subscription/notify",
+      "configuredIn": "Subscription Notification URL, on the application in the Digimart portal",
+      "summary": "Digimart calls this on you. It posts subscription lifecycle changes — the registration from the subscription SDK, and status changes — to the URL configured on your application. The specification describes it as the callback to the initial Subscription Charging SDK request, denoting subscriber status.",
+      "reference": "references/05-callbacks.md",
+      "dedupeKey": "subscriberId + status + timeStamp",
+      "payloadPublished": true,
+      "fields": [
+        {
+          "name": "timeStamp",
+          "type": "string",
+          "required": true,
+          "description": "The time the notification was sent, e.g. 20240801044105 (yyyyMMddHHmmss in every published sample)."
+        },
+        {
+          "name": "subscriberId",
+          "type": "string",
+          "required": true,
+          "description": "The subscriber the notification concerns — the masked value, with no tel: prefix."
+        },
+        {
+          "name": "applicationId",
+          "type": "string",
+          "required": true,
+          "description": "Your application. Verify it equals DIGIMART_APP_ID and ignore the notification if it does not."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": true,
+          "description": "API version, e.g. 2.0."
+        },
+        {
+          "name": "frequency",
+          "type": "enum",
+          "required": true,
+          "enum": [
+            "daily",
+            "monthly"
+          ],
+          "description": "How often the subscription is billed."
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": true,
+          "enum": [
+            "REGISTERED",
+            "TEMPORARY_BLOCKED",
+            "REG_PENDING"
+          ],
+          "description": "Status of the subscription entry. The specification limits it to these three."
+        },
+        {
+          "name": "subscriberRequestId",
+          "type": "string",
+          "required": false,
+          "description": "The requestId you allocated when you built the SDK URL for this user. The key that ties the notification to your user."
+        }
+      ],
+      "samplePayload": {
+        "timeStamp": "20240801044105",
+        "subscriberId": "ZmQ5YmRmMDA5NzdlZTzM5NjJjNjRkNWNiMjkzOWYxMzk4MzI3ZjYyM2UwMmJmYzY3YzpncmFtZWVucGhvbmU=",
+        "applicationId": "APP_000186",
+        "subscriberRequestId": "123456789012100",
+        "version": "2.0",
+        "frequency": "daily",
+        "status": "REGISTERED"
+      },
+      "statusCodes": [],
+      "rules": [
+        "Respond HTTP 200 promptly and do the work asynchronously. Digimart publishes no response body, so do not depend on anything you return being read.",
+        "Match it to your user by subscriberRequestId (your original requestId), then record subscriberId against that user. This, not the browser redirect, is the authoritative subscriber mapping.",
+        "Deduplicate on subscriberId + status + timeStamp. A replayed notification must not grant access twice.",
+        "Verify applicationId against your own. Digimart publishes no signature or authentication for notifications, so reconcile anything that grants value against Subscriber List or Subscriber Charging Info.",
+        "TEMPORARY_BLOCKED and REG_PENDING are live subscribers in trouble, not absent ones — suspend access, do not delete the record.",
+        "Missed one? POST /subscription-info-server/getSubscribers exists to retrieve subscription notifications you did not receive.",
+        "An earlier tutorial sample put the applicationId under a key equal to the requestId. The specification and the documentation use applicationId; accept that, and log any body where it is missing rather than failing."
+      ],
+      "source": "https://digimart.store/docs/rest-api#endpoints"
+    },
+    {
+      "id": "charging-notification",
+      "name": "Charging Notification",
+      "aliases": [
+        "async charging resp",
+        "async charging response",
+        "charging result",
+        "payment notification",
+        "caas notification",
+        "charging callback"
+      ],
+      "category": "one-time",
+      "direction": "inbound",
+      "kind": "notification",
+      "method": "POST",
+      "suggestedPath": "/api/digimart/charging/notify",
+      "configuredIn": "Async charging resp URL, on the application in the Digimart portal (the charging notification URL entered with the charging details when provisioning)",
+      "summary": "Digimart posts the charging result here after a one-time charge, and after a subscription with header enrichment. This is the fact that money moved: deliver goods on this, never on the redirect.",
+      "reference": "references/05-callbacks.md",
+      "dedupeKey": "internalTrxId + statusCode",
+      "payloadPublished": "sample-only",
+      "payloadNote": "Digimart publishes a sample of this payload but no schema. The fields below are exactly the ones in the sample; treat every one as possibly absent and log the raw body on the first deliveries in sandbox. Do not invent fields.",
+      "fields": [
+        {
+          "name": "requestId",
+          "type": "string",
+          "required": false,
+          "description": "The requestId you put in the SDK URL. The key that ties this charge to your order."
+        },
+        {
+          "name": "statusCode",
+          "type": "string",
+          "required": false,
+          "description": "S1000 means the charge succeeded. Anything else is a failure; decode it with the SDK error codes."
+        },
+        {
+          "name": "statusDetail",
+          "type": "string",
+          "required": false,
+          "description": "Human-readable outcome, e.g. 'Request was Successfully processed, Due amount fully paid.'"
+        },
+        {
+          "name": "applicationId",
+          "type": "string",
+          "required": false,
+          "description": "Your application. Verify it equals DIGIMART_APP_ID."
+        },
+        {
+          "name": "subscriberId",
+          "type": "string",
+          "required": false,
+          "description": "The masked subscriber, no tel: prefix."
+        },
+        {
+          "name": "internalTrxId",
+          "type": "string",
+          "required": false,
+          "description": "Digimart's transaction identifier. Store it; quote it to support."
+        },
+        {
+          "name": "totalAmount",
+          "type": "string",
+          "required": false,
+          "description": "The amount of the charge, as a decimal string, e.g. 50.95."
+        },
+        {
+          "name": "paidAmount",
+          "type": "string",
+          "required": false,
+          "description": "The amount actually paid, as a decimal string. Compare it with what you asked for."
+        },
+        {
+          "name": "balanceDue",
+          "type": "number",
+          "required": false,
+          "description": "Amount still due; 0 when fully paid. A JSON number in the sample, unlike the other amounts."
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "required": false,
+          "description": "Currency of the amounts, BDT."
+        },
+        {
+          "name": "timeStamp",
+          "type": "string",
+          "required": false,
+          "description": "When the notification was sent, e.g. 20240703090835."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "description": "API version, e.g. 2.0."
+        }
+      ],
+      "samplePayload": {
+        "balanceDue": 0,
+        "subscriberId": "ZjUyMTM1MjlhYmU0ZmJmY2FkYjRkYWI3NzE2ZDg0MjE0NjNjYTM5MGFhZTczOWZlZDUxMTcxN2U3YTVlZTRiNmU=",
+        "statusDetail": "Request was Successfully processed, Due amount fully paid.",
+        "version": "2.0",
+        "timeStamp": "20240703090835",
+        "totalAmount": "50.95",
+        "requestId": "123456789012346",
+        "currency": "BDT",
+        "applicationId": "APP_000040",
+        "internalTrxId": "924070309080000043",
+        "paidAmount": "50.95",
+        "statusCode": "S1000"
+      },
+      "statusCodes": [
+        "S1000"
+      ],
+      "rules": [
+        "This is your settlement channel. Fulfil an order only when this arrives with statusCode S1000 for its requestId.",
+        "Read totalAmount, paidAmount and balanceDue together, as decimals — never as binary floats. Fulfil when paidAmount equals the amount you asked for and balanceDue is 0.",
+        "Deduplicate on internalTrxId + statusCode (fall back to requestId + statusCode if internalTrxId is absent). A repeat must not double-count revenue or deliver twice.",
+        "Verify applicationId against your own and the requestId against an order you created. Digimart publishes no signature for notifications.",
+        "Respond HTTP 200 promptly, then process asynchronously. Digimart publishes no response body.",
+        "The amounts mix types in the sample: totalAmount and paidAmount are strings, balanceDue is a number. Parse both forms.",
+        "Only S1000 is documented on this payload. Treat any other statusCode as a failed charge and decode it against the SDK error codes, which share the same code scheme."
+      ],
+      "source": "https://digimart.store/docs/one-time-sdk#after-the-charge"
+    },
+    {
+      "id": "redirect-return",
+      "name": "Redirect Return (browser)",
+      "aliases": [
+        "redirect",
+        "redirecturl",
+        "return url",
+        "back to application",
+        "landing page",
+        "subscriptionstatus"
+      ],
+      "category": "sdk",
+      "direction": "inbound",
+      "kind": "redirect",
+      "method": "GET",
+      "suggestedPath": "/digimart/return",
+      "configuredIn": "The redirectUrl query parameter of each SDK URL you build (not a portal setting)",
+      "summary": "When the subscriber presses 'Back to Application', Digimart sends their browser to your redirectUrl with the outcome appended as query parameters. It is a convenience for the user interface, not a record of payment.",
+      "reference": "references/05-callbacks.md",
+      "dedupeKey": "requestId",
+      "payloadPublished": true,
+      "fields": [
+        {
+          "name": "subscriptionStatus",
+          "type": "string",
+          "required": true,
+          "description": "A status code — S1000 on success or one of the SDK error codes. Not a word like REGISTERED or CHARGED."
+        },
+        {
+          "name": "subscriberId",
+          "type": "string",
+          "required": true,
+          "description": "Masked number corresponding to the subscriber."
+        },
+        {
+          "name": "requestId",
+          "type": "string",
+          "required": true,
+          "description": "The requestId you allocated when you built the URL."
+        }
+      ],
+      "samplePayload": {
+        "subscriptionStatus": "S1000",
+        "subscriberId": "OGI2OGY1Njk2NjhlNjAyMTM1OWIwMzlhYTIxOGIyMDBlYTZlNmEyYzY5ZTM5MmYzMjRkMDg1MmMzYmIzYzE5YTpncmE",
+        "requestId": "123456789012347"
+      },
+      "statusCodes": [
+        "S1000",
+        "E1001",
+        "E1002",
+        "E1003",
+        "E1004",
+        "E1005",
+        "E1006",
+        "E1007",
+        "E1008",
+        "E1009",
+        "E1010",
+        "E1011",
+        "E1012",
+        "E1013",
+        "E1014",
+        "E1329",
+        "E1330",
+        "E2001",
+        "E2002",
+        "E2003",
+        "E2004",
+        "E3001",
+        "E3002",
+        "E3003",
+        "E3004",
+        "E3005",
+        "E3006",
+        "E3007",
+        "E3008",
+        "E3009",
+        "E4001"
+      ],
+      "rules": [
+        "Query parameters on a GET, not a JSON body. Parse them from the URL.",
+        "It travels through the subscriber's browser: it may never arrive (they close the tab) and anyone can forge it by typing a URL. Never grant access or deliver goods on it.",
+        "Use it to show the right screen: on S1000 'payment received, confirming…' until the notification lands; on E3009 a friendly recharge prompt; on E1xxx a generic apology (it is your bug) — never the raw code.",
+        "Look the requestId up in your own store. Ignore a requestId you never issued.",
+        "Record subscriberId against the requestId as provisional, and confirm it from the notification, which is authoritative.",
+        "If the redirectUrl is a mobile deep link or a web view, intercept it there and hand the query string to your backend; the rules are the same."
+      ],
+      "source": "https://digimart.store/docs/subscription-sdk#after-the-charge"
+    }
+  ],
+  "yourEndpoints": [
+    {
+      "name": "Start endpoint (checkout / subscribe)",
+      "method": "GET or POST, your choice",
+      "suggestedPath": "/digimart/checkout, /digimart/subscribe",
+      "why": "The signature needs the API Secret, which can only live on your server. Web, mobile and SPA clients call this endpoint; it decides the amount from your own price list, allocates and persists a requestId, signs the URL and either answers 302 to it or returns it as JSON for a web view to open.",
+      "reference": "references/10-any-stack.md"
+    },
+    {
+      "name": "Redirect landing",
+      "method": "GET",
+      "suggestedPath": "/digimart/return",
+      "why": "The redirectUrl. Reads subscriptionStatus, subscriberId and requestId from the query string and shows the right screen. Never fulfils.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "name": "Subscription Notification URL",
+      "method": "POST",
+      "suggestedPath": "/api/digimart/subscription/notify",
+      "why": "Receives subscription lifecycle notifications. Public HTTPS, configured on the application.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "name": "Async charging resp URL",
+      "method": "POST",
+      "suggestedPath": "/api/digimart/charging/notify",
+      "why": "Receives charging results. Public HTTPS, configured on the application. The only place a payment is confirmed.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "name": "Cancel endpoint",
+      "method": "POST",
+      "suggestedPath": "/digimart/unsubscribe",
+      "why": "Your user's 'cancel my subscription' control. Authenticates your user, looks up their subscriberId and calls POST /subs/unregistration from the server.",
+      "reference": "references/06-rest-apis.md"
+    },
+    {
+      "name": "Reconciliation job",
+      "method": "scheduled",
+      "suggestedPath": "n/a",
+      "why": "Pages POST /subscription-info-server/getSubscribers to catch notifications you missed and correct local state.",
+      "reference": "references/06-rest-apis.md"
+    }
+  ],
+  "notPublished": [
+    {
+      "item": "SMS, USSD, OTP request/verify, caas/queryBalance and caas/directDebit REST operations",
+      "detail": "The OpenAPI file behind Digimart's API documentation carries tag descriptions for sms/send, sms/receive, sms/report, ussd/send, ussd/receive, caas/queryBalance, caas/directDebit, otp/request and otp/verify — but no paths, no schemas, and they are not in the rendered tag group. They are leftovers from the platform the document was derived from, not Digimart APIs. Do not call them, and never borrow their paths or payloads from mSpace, Ideamart or Applink."
+    },
+    {
+      "item": "A server-to-server charge",
+      "detail": "There is no REST call that charges a subscriber. Every charge goes through a signed SDK URL, where the subscriber confirms with an OTP."
+    },
+    {
+      "item": "Subscribing a user by REST",
+      "detail": "Registration happens only through the Subscription Charging SDK. The REST surface can list, look up and unsubscribe."
+    },
+    {
+      "item": "Refunds or reversals",
+      "detail": "No API is published. Handle disputes through support@digimart.store."
+    },
+    {
+      "item": "Authentication of notifications",
+      "detail": "Digimart publishes no signature, token or source-IP list for its notifications. Verify applicationId and the requestId against your own records, and reconcile with the REST lookups."
+    },
+    {
+      "item": "Notification response body and retry policy",
+      "detail": "No response body is published, and neither is whether or how often Digimart redelivers. Answer 200 fast, be idempotent, and reconcile with Subscriber List."
+    },
+    {
+      "item": "A separate sandbox host",
+      "detail": "Sandbox is an application state in the same portal (free, 'practice mode'); no separate sandbox base URL is published. E3005 ('not whitelisted') is the documented symptom of testing with a number that is not allowed yet."
+    },
+    {
+      "item": "Descriptions for the REST status codes",
+      "detail": "The specification permits S1001, E1100 and E1102 to E1107 on the subscriber list but describes none of them. Their statusDetail is the only explanation available; do not borrow meanings from another platform."
+    },
+    {
+      "item": "Per-renewal notifications for subscriptions",
+      "detail": "Not documented. Use Subscriber Charging Info (lastChargedDate, lastChargedAmount) and Subscriber List to know when a subscriber was last charged."
+    },
+    {
+      "item": "Official SDK libraries or code samples for the REST APIs",
+      "detail": "The specification's x-code-samples for Java, PHP, JavaScript and .NET all read 'coming soon'. Every call is a plain HTTPS request, so none is needed."
+    }
+  ],
+  "discrepancies": [
+    {
+      "id": "hash-algorithm",
+      "where": "Subscription SDK (original tutorial prose)",
+      "issue": "Prose said SHA 256; the parameter table and worked example say SHA-512.",
+      "resolution": "SHA-512. The live documentation uses SHA-512 throughout."
+    },
+    {
+      "id": "request-time-format",
+      "where": "Subscription SDK (original tutorial prose)",
+      "issue": "Prose gave requestTime as 20240227113053; the table and every sample URL use 2024-07-08T10:33:54.929Z.",
+      "resolution": "ISO 8601 UTC with milliseconds and Z."
+    },
+    {
+      "id": "signing-order",
+      "where": "Subscription with HE, and one-time (original tutorial prose)",
+      "issue": "Prose ordered the signing string apiKey|apiSecret|requestTime; the worked example gives apiKey|requestTime|apiSecret.",
+      "resolution": "apiKey|requestTime|apiSecret(|amount), as the worked example and the live documentation state. A wrong order hashes cleanly and fails every time with E1002."
+    },
+    {
+      "id": "sample-host",
+      "where": "Subscription with HE, and one-time (original tutorials)",
+      "issue": "A sample URL pointed at dev.sdp.hsenidmobile.com, and the one-time page's first sample used the subscription path.",
+      "resolution": "user.digimart.store, with /sdk/subscription/caas-authorize for one-time."
+    },
+    {
+      "id": "notification-app-key",
+      "where": "Subscription SDK sample notification",
+      "issue": "The sample put the application ID under a key equal to the requestId instead of applicationId.",
+      "resolution": "applicationId, per the REST specification. Tolerate its absence; do not crash."
+    },
+    {
+      "id": "he-amount",
+      "where": "Subscription with HE",
+      "issue": "Lists a required amount parameter for a subscription, which the non-HE flow does not, and does not sign it.",
+      "resolution": "Recorded as published. Confirm its effect with support before relying on it."
+    },
+    {
+      "id": "one-time-band",
+      "where": "One-time SDK",
+      "issue": "The SDK page's error codes refer to amounts too high/low without restating the band.",
+      "resolution": "1 to 600 BDT, from the pricing page."
+    },
+    {
+      "id": "quickstart-redirect-json",
+      "where": "https://digimart.store/docs/quickstart step 5",
+      "issue": "Shows the redirect outcome as a JSON object with subscriptionStatus \"CHARGED\" and a separate statusCode.",
+      "resolution": "The flow references and samples show query parameters on a browser redirect, where subscriptionStatus carries a status code such as S1000. Parse query parameters; do not expect JSON or CHARGED."
+    },
+    {
+      "id": "timezone-error-code",
+      "where": "https://digimart.store/docs/signatures, rules table",
+      "issue": "Says a clock drifting outside the accepted window can return E1011.",
+      "resolution": "E1011 is 'SDK Is Not Enabled For This Application'. A bad or stale requestTime maps to E1003 (Invalid Time Format) or E1004 (Request Timeout)."
+    },
+    {
+      "id": "dhaka-vs-utc",
+      "where": "All SDK flows",
+      "issue": "requestTime is described as 'UTC format' and also 'generated in the Asia/Dhaka timezone'.",
+      "resolution": "Every published code sample produces the true current UTC instant with a Z suffix. Do that; keep the clock NTP-synced."
+    },
+    {
+      "id": "tel-space",
+      "where": "REST examples",
+      "issue": "The lookup APIs' examples write \"tel: 8801740812854\" with a space; the unsubscription specification writes tel:8801740812854.",
+      "resolution": "Send tel: with no space. Accept either form when reading responses."
+    },
+    {
+      "id": "subscribers-shape",
+      "where": "POST /subscription-info-server/getSubscribers",
+      "issue": "subscribers is typed as a single object in the specification and shown as an array in the example.",
+      "resolution": "Normalise to an array."
+    },
+    {
+      "id": "last-charged-date",
+      "where": "Subscriber List and Charging Info",
+      "issue": "lastChargedDate is documented as YYYY-MM-DD hh:mm:ss; the example is 2020-01-23 22.03.22.",
+      "resolution": "Parse both separators; store the raw string alongside."
+    },
+    {
+      "id": "charging-info-shape",
+      "where": "POST /subscription/getSubscriberChargingInfo",
+      "issue": "The request subscriberId is typed string but exampled as an array; the response lists subscriptionStatus as required at the top level but defines it only per destination.",
+      "resolution": "Send an array. Read subscriptionStatus from each destinationResponses entry."
+    },
+    {
+      "id": "unregistration-samples",
+      "where": "POST /subs/unregistration",
+      "issue": "The response schema's requestId example is 'not registered' and its subscriptionStatus example is 'UNREGISTERED.' with a trailing period; action's enum is the number 0 while its example is the string \"0\".",
+      "resolution": "Send action as the string \"0\". Compare subscriptionStatus after trimming punctuation and whitespace."
+    },
+    {
+      "id": "legacy-tags",
+      "where": "OpenAPI file",
+      "issue": "Tag descriptions exist for sms, ussd, otp and caas operations that have no paths.",
+      "resolution": "Not Digimart APIs. See notPublished."
+    },
+    {
+      "id": "legacy-sources-gone",
+      "where": "digimart.store/tutorials/*.php and /API_Documentation",
+      "issue": "The original tutorial pages and the Redoc page now return 404.",
+      "resolution": "https://digimart.store/docs is the source of truth; it carries the same contract."
+    }
+  ],
+  "statusCodeClasses": {
+    "success": {
+      "retry": false,
+      "action": "Proceed. On the SDK, still deliver only when the async notification confirms it."
+    },
+    "undocumented-success": {
+      "retry": false,
+      "action": "S-prefixed, which is the success family in Digimart's code scheme, but Digimart publishes no meaning for it. Do not raise an error: process whatever the body carries, and log statusCode and statusDetail."
+    },
+    "configuration": {
+      "retry": false,
+      "action": "The application, its key or its entitlements are wrong. Fix it in the portal or with support@digimart.store — code changes will not help. Alert on these: the integration is down, not one request."
+    },
+    "client": {
+      "retry": false,
+      "action": "What you built is wrong. Fix the URL, the signature or the body. On the SDK, retrying means a NEW URL with a fresh requestId."
+    },
+    "user-state": {
+      "retry": "after-user-action",
+      "action": "The subscriber cannot complete this right now. Tell them what to do in plain words; do not re-prompt in a loop, and never show the raw code."
+    },
+    "transient": {
+      "retry": true,
+      "action": "Platform-side. On the SDK, let the subscriber start again with a fresh requestId; on REST, retry with capped exponential backoff. If it persists, send the requestId to support@digimart.store."
+    },
+    "undocumented": {
+      "retry": false,
+      "action": "Permitted by Digimart's specification with no published meaning. Treat the request as failed, log statusCode, statusDetail and requestId, and escalate to support@digimart.store rather than guessing."
+    }
+  },
+  "statusCodes": {
+    "S1000": {
+      "class": "success",
+      "surface": [
+        "sdk",
+        "rest"
+      ],
+      "description": "Success",
+      "fix": "The request completed. For a charge, still wait for the async notification before you deliver anything."
+    },
+    "S1001": {
+      "class": "undocumented-success",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description.",
+      "benignFor": [
+        "get-subscribers"
+      ]
+    },
+    "E1100": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1102": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1103": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1104": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1105": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1106": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1107": {
+      "class": "undocumented",
+      "surface": [
+        "rest"
+      ],
+      "published": false,
+      "description": "Permitted on the Subscriber List response. Digimart publishes no description."
+    },
+    "E1001": {
+      "class": "transient",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Error Occurred. Please Try Again.",
+      "fix": "A general failure with no specific cause reported. Retry with a fresh requestId; if it persists, send your requestId to support."
+    },
+    "E1002": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid Signature",
+      "fix": "The most common integration error. Check the field order (apiKey|requestTime|apiSecret, plus |amount for one-time), that separators are pipes with no spaces, that requestTime (and amount) in the hash are byte-identical to the ones in the URL, that you hashed with SHA-512 and emitted lowercase hex, and that you hashed raw rather than URL-encoded values. Check your hashing against the worked example: node tools/digimart.mjs sign --example."
+    },
+    "E1003": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid Time Format",
+      "fix": "Send requestTime as ISO 8601 UTC with milliseconds and a Z, for example 2024-07-08T10:33:54.929Z."
+    },
+    "E1004": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Request Timeout",
+      "fix": "The request took too long or requestTime was too far from server time. Sync your clock with NTP and build the URL immediately before redirecting — never cache a signed URL."
+    },
+    "E1005": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "A record with this requestId already exists. Please enter a unique requestId to proceed.",
+      "fix": "Generate a fresh 15-digit requestId for every URL. Never retry with one you have already used."
+    },
+    "E1006": {
+      "class": "configuration",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid Api Key",
+      "fix": "Copy the API Key again from your application in the Digimart portal, and check the deployment is loading the right environment's key."
+    },
+    "E1007": {
+      "class": "configuration",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Unauthorized",
+      "fix": "The credentials are recognised but not permitted for this call. Confirm the application is approved and the key belongs to it."
+    },
+    "E1008": {
+      "class": "configuration",
+      "surface": [
+        "sdk"
+      ],
+      "description": "This Service Is Not Allowed For The Application. Please Contact Administrator.",
+      "fix": "The application is not entitled to the service you called. Enable the relevant API (CaaS) on the app and resubmit it for approval."
+    },
+    "E1009": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid Request",
+      "fix": "A parameter is missing or malformed. Compare your query string against the flow's parameter table: node tools/digimart.mjs check-url '<your url>'."
+    },
+    "E1010": {
+      "class": "configuration",
+      "surface": [
+        "sdk"
+      ],
+      "description": "This Service Is Not Allowed For The SP. Please Contact Administrator",
+      "fix": "The restriction is on the service provider account rather than the app. Only an administrator can lift it."
+    },
+    "E1011": {
+      "class": "configuration",
+      "surface": [
+        "sdk"
+      ],
+      "description": "SDK Is Not Enabled For This Application. Please Contact Administrator",
+      "fix": "Turn on the Subscription Charging SDK for the application in the portal, then have it approved."
+    },
+    "E1012": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Please Start From The Beginning",
+      "fix": "The session state was lost, usually because a step was skipped or a page was reloaded. Build a new URL with a new requestId."
+    },
+    "E1013": {
+      "class": "transient",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Internal Error Occurred. Please Try Again.",
+      "fix": "A platform-side failure. Retry with a new requestId; report it with the requestId if it repeats."
+    },
+    "E1014": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Sorry, your number of verification attempts exceeded. Please try again in (xx) minutes.",
+      "fix": "The subscriber is rate limited. Show the wait time rather than letting them retry immediately."
+    },
+    "E1329": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Charging amount too high",
+      "fix": "The amount exceeds the permitted ceiling. The published one-time band is 1 to 600 BDT."
+    },
+    "E1330": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Charging amount too low",
+      "fix": "The amount is below the permitted floor. The published one-time band starts at 1 BDT."
+    },
+    "E2001": {
+      "class": "transient",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Request OTP Failed Due to an Internal Error",
+      "fix": "The OTP could not be issued. Usually transient at the operator, so let the subscriber retry."
+    },
+    "E2002": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "You Have Exceeded Resend Attempts",
+      "fix": "The subscriber pressed resend too many times. They must start a new flow."
+    },
+    "E2003": {
+      "class": "transient",
+      "surface": [
+        "sdk"
+      ],
+      "description": "OTP Verification Failed Due to an Internal Error",
+      "fix": "Verification could not complete on the platform side. Restart with a new requestId."
+    },
+    "E2004": {
+      "class": "transient",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Subscriber MSISDN validation Failed Due to an Internal Error",
+      "fix": "The number could not be validated. Confirm it is a Grameenphone number in the expected format, then let the subscriber retry."
+    },
+    "E3001": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "User Already Registered",
+      "fix": "The subscriber already has an active subscription. Check with Subscriber Charging Info before starting a new opt-in, and treat this as 'already subscribed', not as an error."
+    },
+    "E3002": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Authentication Failure.",
+      "fix": "The subscriber could not be authenticated by the operator."
+    },
+    "E3003": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Maximum Number of OTP Requests Reached",
+      "fix": "The subscriber has requested too many OTPs. They must wait before trying again."
+    },
+    "E3004": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "This Service Is Not Allowed for Your Operator",
+      "fix": "The number is not on an operator this service covers. Digimart charges Grameenphone subscribers."
+    },
+    "E3005": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Your Mobile Number Is Not Whitelisted to Use This Application",
+      "fix": "Common in sandbox: only whitelisted test numbers can transact until the app is approved for production."
+    },
+    "E3006": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Your Mobile Number Is Blacklisted to Use This Application",
+      "fix": "The number is blocked for this application. Do not retry automatically."
+    },
+    "E3007": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Your Mobile Number Has Reached Maximum Number of OTP Attempts",
+      "fix": "Too many wrong entries from this number. The subscriber is locked out temporarily."
+    },
+    "E3008": {
+      "class": "client",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid Mobile Number Format",
+      "fix": "The msisdn is malformed. The documented sample uses the local form 01748277168. If you passed msisdn in the URL, fix what you sent; otherwise the subscriber mistyped."
+    },
+    "E3009": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Your account balance is too low, recharge and try again",
+      "fix": "The single most common real-world failure. Give it its own friendly recharge screen with a retry, and consider offering a cheaper tier."
+    },
+    "E4001": {
+      "class": "user-state",
+      "surface": [
+        "sdk"
+      ],
+      "description": "Invalid OTP, please try again",
+      "fix": "The subscriber typed the wrong code. Digimart lets them re-enter it within the same flow."
+    }
+  },
+  "practices": [
+    {
+      "id": "no-hardcoded-credentials",
+      "severity": "critical",
+      "title": "Never hardcode the API Secret or the App Password",
+      "detail": "Environment variables only, through one config module validated at startup. Not in source, not in a client bundle, not in a committed file, not in a log, not in git history. Never prefixed NEXT_PUBLIC_ / VITE_ / REACT_APP_ / PUBLIC_ / EXPO_PUBLIC_.",
+      "reference": "references/08-security-best-practices.md"
+    },
+    {
+      "id": "sign-server-side",
+      "severity": "critical",
+      "title": "Build and sign the SDK URL on the server only",
+      "detail": "A signature computed in browser JavaScript, a mobile binary or a Flutter/React Native app means the API Secret ships to every device, and anyone can build charging URLs for your application. Clients call your start endpoint; your server signs.",
+      "reference": "references/08-security-best-practices.md"
+    },
+    {
+      "id": "fulfil-on-notification",
+      "severity": "critical",
+      "title": "Deliver on the notification, never on the redirect",
+      "detail": "The redirect travels through the subscriber's browser: it may not arrive, and anyone can type it. Only the notification on the Async charging resp URL (or the Subscription Notification URL) is the record that money moved.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "id": "server-side-amount",
+      "severity": "critical",
+      "title": "Decide the amount on the server",
+      "detail": "Take the one-time amount from your own price list, keyed by what the user is buying. An amount from the client lets a user set their own price — and it is signed, so Digimart will honour it.",
+      "reference": "references/04-one-time-sdk.md"
+    },
+    {
+      "id": "sign-amount",
+      "severity": "critical",
+      "title": "Sign the amount on one-time charges",
+      "detail": "apiKey|requestTime|apiSecret|amount. Signing three fields on the CaaS path fails every request with E1002.",
+      "reference": "references/02-signatures.md"
+    },
+    {
+      "id": "fresh-request-id",
+      "severity": "high",
+      "title": "A fresh 15-digit requestId per URL, persisted first",
+      "detail": "Allocate it, store it against the order or user, then redirect. Never reuse one (E1005), never derive it from the millisecond clock alone under concurrency.",
+      "reference": "references/02-signatures.md"
+    },
+    {
+      "id": "single-request-time",
+      "severity": "high",
+      "title": "One requestTime value, used in both places",
+      "detail": "Format the current UTC instant once into a variable and put that same string in the hash and the query string. Keep the clock NTP-synced, and never cache a signed URL — build it at the moment of redirect.",
+      "reference": "references/02-signatures.md"
+    },
+    {
+      "id": "idempotent-notifications",
+      "severity": "high",
+      "title": "Notification handlers are idempotent and acknowledge first",
+      "detail": "Answer HTTP 200 immediately, queue the work, deduplicate on the documented key (internalTrxId + statusCode for charges, subscriberId + status + timeStamp for subscriptions). A replay must never grant access or count revenue twice.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "id": "verify-notifications",
+      "severity": "high",
+      "title": "Treat notification bodies as untrusted",
+      "detail": "Digimart publishes no signature for notifications. Validate the schema, check applicationId, match requestId to an order you created, and reconcile value-granting changes against the REST lookups.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "id": "store-subscriber-mapping",
+      "severity": "high",
+      "title": "Store the requestId ↔ subscriberId mapping",
+      "detail": "subscriberId is a masked number and is how every later REST call and notification identifies the subscriber. Without the mapping you cannot tell who a notification is about or unsubscribe anyone.",
+      "reference": "references/03-subscription-sdk.md"
+    },
+    {
+      "id": "working-cancel",
+      "severity": "high",
+      "title": "Cancellation must be obvious and must work",
+      "detail": "Build a cancel control that calls POST /subs/unregistration from the server. It is on the go-live checklist and a condition of the developer agreement.",
+      "reference": "references/06-rest-apis.md"
+    },
+    {
+      "id": "rest-status-branching",
+      "severity": "high",
+      "title": "Branch on statusCode on the REST surface",
+      "detail": "A REST response carries the outcome in statusCode. Check it, and check each destinationResponses entry on Charging Info. Do not decide on the HTTP status alone.",
+      "reference": "references/07-status-codes.md"
+    },
+    {
+      "id": "two-hosts",
+      "severity": "medium",
+      "title": "Two hosts, two credentials — keep them apart",
+      "detail": "SDK URLs on user.digimart.store with API Key + Secret; REST on api.digimart.store with applicationId + App Password. One endpoint variable per service, never a shared base URL.",
+      "reference": "references/01-getting-started.md"
+    },
+    {
+      "id": "no-raw-codes",
+      "severity": "medium",
+      "title": "Never show a raw error code to a customer",
+      "detail": "Map codes to what the user should do next: recharge (E3009), retry the OTP (E2xxx, E4001), come back later (E1014, E3003, E3007), or a generic apology for E1xxx, which is your bug.",
+      "reference": "references/07-status-codes.md"
+    },
+    {
+      "id": "decimal-money",
+      "severity": "medium",
+      "title": "Money is decimal, in BDT",
+      "detail": "Parse totalAmount, paidAmount and balanceDue into a decimal type. Compare paidAmount with the amount you asked for.",
+      "reference": "references/05-callbacks.md"
+    },
+    {
+      "id": "tls-verification",
+      "severity": "medium",
+      "title": "Never disable TLS verification",
+      "detail": "Not for the REST calls, not for anything else. An incomplete chain is fixed by supplying the intermediate CA, not by trusting everything.",
+      "reference": "references/08-security-best-practices.md"
+    },
+    {
+      "id": "no-invented-endpoints",
+      "severity": "medium",
+      "title": "Do not call endpoints Digimart does not publish",
+      "detail": "No SMS, USSD, OTP, balance-query or direct-debit REST calls exist on Digimart, whatever the OpenAPI file's leftover tags say. Do not borrow them from mSpace, Ideamart or Applink.",
+      "reference": "references/12-source-discrepancies.md"
+    },
+    {
+      "id": "log-identifiers",
+      "severity": "medium",
+      "title": "Log identifiers, not secrets",
+      "detail": "Log requestId, internalTrxId, statusCode and a masked subscriberId on every operation. Never log the API Secret, the App Password, a full signed URL's signature, or an unmasked MSISDN.",
+      "reference": "references/08-security-best-practices.md"
+    }
+  ]
+}

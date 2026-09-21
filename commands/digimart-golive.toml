@@ -1,0 +1,2 @@
+description = "Run the Digimart go-live checklist"
+prompt = "Run the Digimart go-live check on this project{{args}}. Use `node tools/digimart.mjs checklist` and the digimart-golive skill. For every item state PASS, FAIL or CANNOT VERIFY with evidence (file path, config value, test run) — never assume. Finish with the FAIL items ordered by risk and a plain verdict on whether it is safe to submit for approval and to charge real Grameenphone subscribers."

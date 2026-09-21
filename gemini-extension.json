@@ -1,0 +1,6 @@
+{
+  "name": "digimart",
+  "version": "1.0.0",
+  "description": "Build correct Digimart integrations — Subscription and One-Time Charging SDKs (SHA-512 signed URLs), notifications and REST subscriber APIs, for charging Grameenphone subscribers in Bangladesh.",
+  "contextFileName": "AGENTS.md"
+}

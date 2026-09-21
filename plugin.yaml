@@ -1,0 +1,21 @@
+name: digimart
+version: 1.0.0
+description: Digimart carrier-billing integration for AI agents — always-on context, bundled skills, and slash commands.
+license: Proprietary — see LICENSE
+author: hSenid Mobile Solutions
+provides_skills:
+  - digimart
+  - digimart-scaffold
+  - digimart-review
+  - digimart-callbacks
+  - digimart-debug
+  - digimart-golive
+  - digimart-help
+provides_commands:
+  - digimart
+  - digimart-scaffold
+  - digimart-review
+  - digimart-callbacks
+  - digimart-debug
+  - digimart-golive
+  - digimart-help

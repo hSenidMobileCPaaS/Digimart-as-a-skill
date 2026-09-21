@@ -1,0 +1,7 @@
+{
+  "name": "digimart",
+  "version": "1.0.0",
+  "description": "Digimart carrier-billing integration skills — Subscription SDK, One-Time Charging SDK and REST subscriber APIs.",
+  "skills": "./skills/",
+  "rules": "./.qoder/rules/"
+}

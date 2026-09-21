@@ -1,0 +1,2 @@
+description = "What the Digimart skill can do"
+prompt = "Explain what the Digimart skill offers{{args}}, using the digimart-help skill: the CLI commands (node tools/digimart.mjs help), the three signed-URL flows, the three REST calls, the three inbound surfaces, what Digimart does not publish (node tools/digimart.mjs gaps), the reference documents, and that it works in any language."

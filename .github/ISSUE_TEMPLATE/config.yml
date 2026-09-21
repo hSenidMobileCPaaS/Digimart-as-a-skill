@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Digimart platform and support
+    url: https://digimart.store/contact
+    about: For account, provisioning, approval or payment questions, contact Digimart directly — support@digimart.store.
+  - name: Digimart developer documentation
+    url: https://digimart.store/docs
+    about: The published contract this skill is derived from.
+  - name: Security issue
+    url: https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill/blob/main/SECURITY.md
+    about: Do not open a public issue for anything involving a real credential.

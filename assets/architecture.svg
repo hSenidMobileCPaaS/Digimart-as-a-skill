@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img"
+     aria-label="Sequence: the customer's browser or app asks your backend to start a purchase; your backend prices it, signs a URL with the API Secret and redirects the browser to user.digimart.store; Digimart collects the number and OTP and charges the Grameenphone balance; the browser returns to your redirectUrl, which only shows a screen; Digimart's server posts the notification to your backend, which is the only thing that grants access; your backend calls api.digimart.store with applicationId and App Password to unsubscribe or reconcile. The API Secret never leaves your backend.">
+  <style>
+    .life  { stroke: #CBD5E1; stroke-width: 1.5; stroke-dasharray: 4 5; }
+    .head  { fill: #ffffff; stroke: #CBD5E1; stroke-width: 1.5; }
+    .you   { fill: #F4F1FC; stroke: #6F47C4; stroke-width: 2; }
+    .dm    { fill: #EEF8FF; stroke: #0C6CA9; stroke-width: 1.5; }
+    .t     { font: 600 14px ui-sans-serif, system-ui, sans-serif; fill: #0F172A; }
+    .s     { font: 400 12px ui-sans-serif, system-ui, sans-serif; fill: #475569; }
+    .m     { font: 500 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #0F172A; }
+    .n     { font: 700 12px ui-sans-serif, system-ui, sans-serif; fill: #ffffff; }
+    .dot   { fill: #6F47C4; }
+    .flow  { stroke: #6F47C4; stroke-width: 2; fill: none; marker-end: url(#a); }
+    .auth  { stroke: #15803D; stroke-width: 2.5; fill: none; marker-end: url(#g); }
+    .weak  { stroke: #B91C1C; stroke-width: 2; fill: none; stroke-dasharray: 6 4; marker-end: url(#r); }
+    .gtxt  { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: #15803D; }
+    .rtxt  { font: 600 12px ui-sans-serif, system-ui, sans-serif; fill: #B91C1C; }
+    .key   { fill: #FEF3C7; stroke: #B45309; stroke-width: 1.2; }
+    .ktxt  { font: 600 11.5px ui-sans-serif, system-ui, sans-serif; fill: #92400E; }
+    @media (prefers-color-scheme: dark) {
+      .life { stroke: #475569; }
+      .head { fill: #111827; stroke: #374151; }
+      .you  { fill: #221840; stroke: #9F80E0; }
+      .dm   { fill: #0B2236; stroke: #38BDF8; }
+      .t    { fill: #F1F5F9; }
+      .s    { fill: #94A3B8; }
+      .m    { fill: #E2E8F0; }
+      .dot  { fill: #9F80E0; }
+      .flow { stroke: #9F80E0; marker-end: url(#ad); }
+      .auth { stroke: #4ADE80; marker-end: url(#gd); }
+      .weak { stroke: #F87171; marker-end: url(#rd); }
+      .gtxt { fill: #4ADE80; }
+      .rtxt { fill: #F87171; }
+      .key  { fill: #3A2A0A; stroke: #F59E0B; }
+      .ktxt { fill: #FCD34D; }
+    }
+  </style>
+  <defs>
+    <marker id="a"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#6F47C4"/></marker>
+    <marker id="ad" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#9F80E0"/></marker>
+    <marker id="g"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#15803D"/></marker>
+    <marker id="gd" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#4ADE80"/></marker>
+    <marker id="r"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#B91C1C"/></marker>
+    <marker id="rd" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0l9 4.5L0 9z" fill="#F87171"/></marker>
+  </defs>
+
+  <!-- Lifeline heads -->
+  <rect class="head" x="30"  y="20" width="170" height="58" rx="10"/>
+  <text class="t" x="115" y="45" text-anchor="middle">Customer</text>
+  <text class="s" x="115" y="64" text-anchor="middle">browser · web view · app</text>
+
+  <rect class="you"  x="290" y="20" width="190" height="58" rx="10"/>
+  <text class="t" x="385" y="45" text-anchor="middle">Your backend</text>
+  <text class="s" x="385" y="64" text-anchor="middle">holds the API Secret</text>
+
+  <rect class="dm"   x="560" y="20" width="170" height="58" rx="10"/>
+  <text class="t" x="645" y="45" text-anchor="middle">Digimart pages</text>
+  <text class="s" x="645" y="64" text-anchor="middle">user.digimart.store</text>
+
+  <rect class="dm"   x="770" y="20" width="170" height="58" rx="10"/>
+  <text class="t" x="855" y="45" text-anchor="middle">Digimart REST</text>
+  <text class="s" x="855" y="64" text-anchor="middle">api.digimart.store</text>
+
+  <line class="life" x1="115" y1="78" x2="115" y2="540"/>
+  <line class="life" x1="385" y1="78" x2="385" y2="540"/>
+  <line class="life" x1="645" y1="78" x2="645" y2="540"/>
+  <line class="life" x1="855" y1="78" x2="855" y2="540"/>
+
+  <!-- 1 -->
+  <circle class="dot" cx="140" cy="112" r="10"/><text class="n" x="140" y="116" text-anchor="middle">1</text>
+  <path class="flow" d="M115 130 H378"/>
+  <text class="m" x="160" y="122">POST /digimart/checkout {itemId}</text>
+
+  <!-- 2 -->
+  <rect class="key" x="396" y="140" width="240" height="42" rx="6"/>
+  <text class="ktxt" x="406" y="157">price from YOUR list · requestId saved</text>
+  <text class="ktxt" x="406" y="174">SHA-512 of apiKey|time|secret|amount</text>
+  <circle class="dot" cx="360" cy="196" r="10"/><text class="n" x="360" y="200" text-anchor="middle">2</text>
+  <path class="flow" d="M385 212 H122"/>
+  <text class="m" x="150" y="204">302 → signed URL</text>
+
+  <!-- 3 -->
+  <circle class="dot" cx="140" cy="240" r="10"/><text class="n" x="140" y="244" text-anchor="middle">3</text>
+  <path class="flow" d="M115 258 H638"/>
+  <text class="m" x="160" y="250">browser opens caas-authorize?…&amp;signature=…</text>
+  <text class="s" x="470" y="282">Digimart shows the price, sends the OTP,</text>
+  <text class="s" x="470" y="298">charges the Grameenphone balance</text>
+
+  <!-- 4 -->
+  <circle class="dot" cx="620" cy="322" r="10"/><text class="n" x="620" y="326" text-anchor="middle">4</text>
+  <path class="weak" d="M645 340 H122"/>
+  <text class="m" x="150" y="332">redirect → redirectUrl?subscriptionStatus=…</text>
+  <path class="weak" d="M115 362 H378"/>
+  <text class="rtxt" x="130" y="382">GET /digimart/return — untrusted: shows a screen, grants nothing</text>
+
+  <!-- 5 -->
+  <circle class="dot" cx="620" cy="410" r="10"/><text class="n" x="620" y="414" text-anchor="middle">5</text>
+  <path class="auth" d="M645 428 H392"/>
+  <text class="m" x="420" y="420">POST notification</text>
+  <text class="gtxt" x="400" y="448">authoritative: verify, dedupe, then deliver</text>
+
+  <!-- 6 -->
+  <circle class="dot" cx="410" cy="480" r="10"/><text class="n" x="410" y="484" text-anchor="middle">6</text>
+  <path class="flow" d="M385 498 H848"/>
+  <text class="m" x="430" y="490">POST /subs/unregistration · getSubscribers</text>
+  <text class="s" x="430" y="520">applicationId + App Password — a different host, a different credential</text>
+</svg>

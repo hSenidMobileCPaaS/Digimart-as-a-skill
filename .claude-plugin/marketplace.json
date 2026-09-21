@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "digimart",
+  "description": "Digimart carrier-billing integration skills for AI agents — Subscription SDK, One-Time Charging SDK and the REST subscriber APIs.",
+  "owner": {
+    "name": "hSenid Mobile Solutions",
+    "url": "https://www.hsenidmobile.com"
+  },
+  "plugins": [
+    {
+      "name": "digimart",
+      "description": "Build correct Digimart integrations. Signed-URL charging, notification handlers, REST subscriber APIs, status codes, credential hygiene and go-live checks.",
+      "source": "./",
+      "category": "integrations"
+    }
+  ]
+}

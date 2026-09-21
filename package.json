@@ -1,0 +1,60 @@
+{
+  "name": "digimart-skill",
+  "version": "1.0.0",
+  "description": "Agent skill for building correct Digimart integrations — the Subscription and One-Time Charging SDKs (SHA-512 signed URLs), their notifications, and the REST subscriber APIs, for charging Grameenphone subscribers in Bangladesh.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "keywords": [
+    "digimart",
+    "grameenphone",
+    "bangladesh",
+    "carrier-billing",
+    "direct-carrier-billing",
+    "subscription",
+    "caas",
+    "mobile-balance-charging",
+    "signed-url",
+    "agent-skills",
+    "ai-agents",
+    "claude-code",
+    "cursor-rules"
+  ],
+  "homepage": "https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hSenidMobileCPaaS/Digimart-as-a-skill/issues"
+  },
+  "bin": {
+    "digimart": "./tools/digimart.mjs"
+  },
+  "files": [
+    "SKILL.md",
+    "AGENTS.md",
+    "catalog/",
+    "references/",
+    "skills/",
+    "commands/",
+    "templates/",
+    "tools/",
+    "scripts/",
+    "assets/",
+    "LICENSE"
+  ],
+  "scripts": {
+    "digimart": "node tools/digimart.mjs",
+    "test": "node --test tests/*.test.js",
+    "sync": "node scripts/sync-rules.mjs && node scripts/build-integration-reference.mjs",
+    "check": "node scripts/sync-rules.mjs --check && node scripts/build-integration-reference.mjs --check && npm test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": {
+    "name": "hSenid Mobile Solutions",
+    "url": "https://www.hsenidmobile.com"
+  },
+  "private": true
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img"
+     aria-label="Digimart Skill for Agents — carrier billing on Grameenphone that your AI agent gets right: signed-URL charging, notifications and REST subscriber APIs, in any language. By hSenid Mobile Solutions.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#281A4A"/>
+      <stop offset="0.6" stop-color="#4D308A"/>
+      <stop offset="1" stop-color="#0C6CA9"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#805DD4"/>
+      <stop offset="1" stop-color="#19A8F5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect x="80" y="96" width="120" height="8" rx="4" fill="url(#bar)"/>
+
+  <text x="80" y="190" font-family="ui-sans-serif, system-ui, sans-serif" font-size="68" font-weight="800" fill="#ffffff">Digimart Skill for Agents</text>
+  <text x="80" y="250" font-family="ui-sans-serif, system-ui, sans-serif" font-size="30" font-weight="400" fill="#D7CCF4">Grameenphone carrier billing your AI agent gets right the first time.</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="24" fill="#EAE4F9" xml:space="preserve">
+    <text x="80" y="340">⇢ signed URLs   apiKey|requestTime|apiSecret|amount → SHA-512</text>
+    <text x="80" y="385">← notifications  deliver on these, never on the redirect</text>
+    <text x="80" y="430">→ REST          subscriber list · charging info · unsubscribe</text>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" fill="#BCE4FF">
+    <text x="80" y="510">Any language · 31 SDK codes · nothing invented · zero dependencies</text>
+  </g>
+  <text x="80" y="570" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" fill="#BDA9EC">by hSenid Mobile Solutions for Digimart</text>
+</svg>

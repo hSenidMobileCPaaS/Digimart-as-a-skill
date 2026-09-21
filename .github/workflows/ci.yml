@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Catalog, tooling and packaging tests
+        run: node --test tests/*.test.js
+
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Agent rule copies are in sync with AGENTS.md
+        run: node scripts/sync-rules.mjs --check
+      - name: Integration reference is in sync with the catalog
+        run: node scripts/build-integration-reference.mjs --check
+      - name: Catalog is valid JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('catalog/digimart-api.json','utf8'))"
+      - name: Manifests are valid JSON
+        run: |
+          for f in .claude-plugin/*.json .codex-plugin/*.json .qoder-plugin/*.json gemini-extension.json opencode.json package.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1
+          done
+      - name: Shell scripts parse
+        run: bash -n scripts/smoke-test.sh && bash -n scripts/test-callbacks.sh
+      - name: This runner's SHA-512 reproduces Digimart's worked example
+        run: |
+          test "$(printf '%s' 'myApiKey123|2024-08-08T12:00:00Z|mySecretKey456|50' | openssl dgst -sha512 | awk '{print $NF}')" = \
+               "3badf638ceca499000fd07b899e5fc0cec348d9762886b8430104291126683892845a208caef8e99b53432571e46c5f04162a1a25646443f7935239ea0901b38"
+      - name: CLI responds
+        run: |
+          node tools/digimart.mjs list --json > /dev/null
+          node tools/digimart.mjs show one-time --json > /dev/null
+          node tools/digimart.mjs sign --example one-time --json > /dev/null
+          node tools/digimart.mjs curl unregistration --json > /dev/null
+          node tools/digimart.mjs code E1002 --json > /dev/null
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No credential-shaped strings committed
+        # Detect what a real credential looks like rather than allowlisting
+        # placeholder spellings. Placeholders are never a long unbroken
+        # alphanumeric run: "replace-me" has a hyphen, "…" is not alphanumeric,
+        # "$VAR" starts with a sigil. Digimart's own published worked example
+        # (mySecretKey456) and sample API key are short or documented, and the
+        # sample passwords in the specification are replaced with "…" here.
+        #
+        # ci.yml is excluded from its own scan, or the patterns match themselves.
+        run: |
+          set -uo pipefail
+          found=0
+
+          if grep -rInE '"password"[[:space:]]*:[[:space:]]*"[A-Za-z0-9]{16,}"' \
+               --exclude-dir=.git --exclude=ci.yml .; then
+            echo "::error::A credential-shaped password value is committed."
+            found=1
+          fi
+
+          if grep -rInE 'DIGIMART_(PASSWORD|API_SECRET)=[A-Za-z0-9]{12,}' \
+               --exclude-dir=.git --exclude=ci.yml .; then
+            echo "::error::A real-looking DIGIMART_PASSWORD or DIGIMART_API_SECRET is committed."
+            found=1
+          fi
+
+          if grep -rInE '(apiSecret|api_secret|ApiSecret)[[:space:]]*[:=][[:space:]]*"[A-Za-z0-9]{24,}"' \
+               --exclude-dir=.git --exclude=ci.yml .; then
+            echo "::error::A credential-shaped API Secret is committed."
+            found=1
+          fi
+
+          if [ "$found" -ne 0 ]; then
+            echo "Have the credential rotated before anything else — see SECURITY.md."
+            exit 1
+          fi
+          echo "No credentials found."
